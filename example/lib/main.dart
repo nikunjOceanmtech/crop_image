@@ -1,7 +1,10 @@
 import 'package:crop_image/crop_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -9,122 +12,103 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Crop Image Demo',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MyHomePage(title: 'Crop Image Demo'),
+      theme: ThemeData(),
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  final String title;
-
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+  const MyHomePage({Key? key}) : super(key: key);
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final controller = CropController(
-    aspectRatio: 0.7,
-    defaultCrop: const Rect.fromLTRB(0.1, 0.1, 0.9, 0.9),
+  CropController controller = CropController(
+    aspectRatio: 0.3 / 0.2,
   );
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
-        ),
-        body: Center(
-          child: CropImage(
-            controller: controller,
-            image: Image.asset('assets/08272011229.jpg'),
-            paddingSize: 25.0,
-            alwaysMove: true,
-            minimumImageSize: 500,
-            maximumImageSize: 500,
+          title: const Text(
+            "Crop Image",
+            style: TextStyle(
+              color: Colors.black,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Colors.black,
+            ),
           ),
         ),
-        bottomNavigationBar: _buildButtons(),
+        backgroundColor: Colors.white,
+        body: Transform.flip(
+          flipX: controller.isFlipImage ? true : false,
+          child: CropImage(
+            controller: controller,
+            image: Image.asset("assets/08272011229.jpg"),
+            paddingSize: 25.0,
+            minimumImageSize: 200,
+            maximumImageSize: 200,
+            onCrop: (value) {},
+          ),
+        ),
+        bottomNavigationBar: Container(
+          height: 80,
+          alignment: Alignment.center,
+          child: _buildButtons(),
+        ),
       );
 
   Widget _buildButtons() => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () {
-              controller.rotation = CropRotation.up;
-              controller.crop = const Rect.fromLTRB(0.1, 0.1, 0.9, 0.9);
-              controller.aspectRatio = 1.0;
+          InkWell(
+            onTap: () => controller.aspectRatio = 1 / 1,
+            child: SvgPicture.asset(
+              "assets/app_image/resent.svg",
+              height: 25,
+              width: 25,
+            ),
+          ),
+          InkWell(
+            onTap: () => controller.rotateRight(),
+            child: SvgPicture.asset(
+              "assets/app_image/refresh.svg",
+              height: 25,
+              width: 25,
+            ),
+          ),
+          InkWell(
+            onTap: () {
+              controller.filpImage(setState(() {}));
             },
+            child: SvgPicture.asset(
+              "assets/app_image/flip.svg",
+              height: 25,
+              width: 25,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.aspect_ratio),
-            onPressed: _aspectRatios,
-          ),
-          IconButton(
-            icon: const Icon(Icons.rotate_90_degrees_ccw_outlined),
-            onPressed: _rotateLeft,
-          ),
-          IconButton(
-            icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
-            onPressed: _rotateRight,
-          ),
-          TextButton(
-            onPressed: _finished,
-            child: const Text('Done'),
+          InkWell(
+            onTap: () => _finished(),
+            child: SvgPicture.asset(
+              "assets/app_image/cropbutton.svg",
+              height: 40,
+              width: 30,
+            ),
           ),
         ],
       );
-
-  Future<void> _aspectRatios() async {
-    final value = await showDialog<double>(
-      context: context,
-      builder: (context) {
-        return SimpleDialog(
-          title: const Text('Select aspect ratio'),
-          children: [
-            // special case: no aspect ratio
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, -1.0),
-              child: const Text('free'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 1.0),
-              child: const Text('square'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 2.0),
-              child: const Text('2:1'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 1 / 2),
-              child: const Text('1:2'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 4.0 / 3.0),
-              child: const Text('4:3'),
-            ),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 16.0 / 9.0),
-              child: const Text('16:9'),
-            ),
-          ],
-        );
-      },
-    );
-    if (value != null) {
-      controller.aspectRatio = value == -1 ? null : value;
-      controller.crop = const Rect.fromLTRB(0.1, 0.1, 0.9, 0.9);
-    }
-  }
-
-  Future<void> _rotateLeft() async => controller.rotateLeft();
-
-  Future<void> _rotateRight() async => controller.rotateRight();
 
   Future<void> _finished() async {
     final image = await controller.croppedImage();
@@ -137,8 +121,6 @@ class _MyHomePageState extends State<MyHomePage> {
           titlePadding: const EdgeInsets.all(8.0),
           title: const Text('Cropped image'),
           children: [
-            Text('relative: ${controller.crop}'),
-            Text('pixels: ${controller.cropSize}'),
             const SizedBox(height: 5),
             image,
             TextButton(

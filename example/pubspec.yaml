@@ -14,6 +14,7 @@ dependencies:
 
   crop_image: ^1.0.6
   cupertino_icons: ^1.0.5
+  flutter_svg: ^2.0.8
 
 dev_dependencies:
   flutter_test:
@@ -30,3 +31,4 @@ flutter:
 
   assets:
     - assets/08272011229.jpg
+    - assets/app_image/

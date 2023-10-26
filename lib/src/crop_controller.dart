@@ -1,17 +1,21 @@
 import 'dart:ui' as ui;
-
 import 'crop_rect.dart';
 import 'crop_rotation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// A controller to control the functionality of [CropImage].
 class CropController extends ValueNotifier<CropControllerValue> {
-  /// Aspect ratio of the image (width / height).
-  ///
-  /// The [crop] rectangle will be adjusted to fit this ratio.
-  /// Pass null for free selection clipping (aspect ratio not enforced).
   double? get aspectRatio => value.aspectRatio;
+
+  bool isFlipImage = false;
+
+  void filpImage([void setState]) {
+    isFlipImage = !isFlipImage;
+
+    setState;
+
+    notifyListeners();
+  }
 
   set aspectRatio(double? newAspectRatio) {
     if (newAspectRatio != null) {
@@ -30,16 +34,6 @@ class CropController extends ValueNotifier<CropControllerValue> {
     notifyListeners();
   }
 
-  /// Current crop rectangle of the image (percentage).
-  ///
-  /// [left] and [right] are normalized between 0 and 1 (full width).
-  /// [top] and [bottom] are normalized between 0 and 1 (full height).
-  ///
-  /// If the [aspectRatio] was specified, the rectangle will be adjusted to fit that ratio.
-  ///
-  /// See also:
-  ///
-  ///  * [cropSize], which represents the same rectangle in pixels.
   Rect get crop => value.crop;
 
   set crop(Rect newCrop) {
@@ -49,21 +43,14 @@ class CropController extends ValueNotifier<CropControllerValue> {
 
   CropRotation get rotation => value.rotation;
 
-  set rotation(CropRotation rotation) {
-    value = value.copyWith(rotation: rotation);
-    notifyListeners();
-  }
+  void rotateRight() => _rotate(side: false);
 
-  void rotateRight() => _rotate(left: false);
+  void rotateLeft() => _rotate(side: true);
 
-  void rotateLeft() => _rotate(left: true);
-
-  void _rotate({required final bool left}) {
-    final CropRotation newRotation =
-        left ? value.rotation.rotateLeft : value.rotation.rotateRight;
-    final Offset newCenter = left
-        ? Offset(crop.center.dy, 1 - crop.center.dx)
-        : Offset(1 - crop.center.dy, crop.center.dx);
+  void _rotate({required final bool side}) {
+    final CropRotation newRotation = side ? value.rotation.rotateLeft : value.rotation.rotateRight;
+    final Offset newCenter =
+        side ? Offset(crop.center.dy, 1 - crop.center.dx) : Offset(1 - crop.center.dy, crop.center.dx);
     value = CropControllerValue(
       aspectRatio,
       _adjustRatio(
@@ -80,17 +67,6 @@ class CropController extends ValueNotifier<CropControllerValue> {
     );
     notifyListeners();
   }
-
-  /// Current crop rectangle of the image (pixels).
-  ///
-  /// [left], [right], [top] and [bottom] are in pixels.
-  ///
-  /// If the [aspectRatio] was specified, the rectangle will be adjusted to fit that ratio.
-  ///
-  /// See also:
-  ///
-  ///  * [crop], which represents the same rectangle in percentage.
-  Rect get cropSize => value.crop.multiply(_bitmapSize);
 
   set cropSize(Rect newCropSize) {
     value = value.copyWith(
@@ -111,31 +87,18 @@ class CropController extends ValueNotifier<CropControllerValue> {
 
   ui.Image? getImage() => _bitmap;
 
-  /// A controller for a [CropImage] widget.
-  ///
-  /// You can provide the required [aspectRatio] and the initial [defaultCrop].
-  /// If [aspectRatio] is specified, the [defaultCrop] rect will be adjusted automatically.
-  ///
-  /// Remember to [dispose] of the [CropController] when it's no longer needed.
-  /// This will ensure we discard any resources used by the object.
   CropController({
     double? aspectRatio,
     Rect defaultCrop = const Rect.fromLTWH(0, 0, 1, 1),
     CropRotation rotation = CropRotation.up,
     double minimumImageSize = 100,
   })  : assert(aspectRatio != 0, 'aspectRatio cannot be zero'),
-        assert(defaultCrop.left >= 0 && defaultCrop.left <= 1,
-            'left should be 0..1'),
-        assert(defaultCrop.right >= 0 && defaultCrop.right <= 1,
-            'right should be 0..1'),
-        assert(
-            defaultCrop.top >= 0 && defaultCrop.top <= 1, 'top should be 0..1'),
-        assert(defaultCrop.bottom >= 0 && defaultCrop.bottom <= 1,
-            'bottom should be 0..1'),
-        assert(defaultCrop.left < defaultCrop.right,
-            'left must be less than right'),
-        assert(defaultCrop.top < defaultCrop.bottom,
-            'top must be less than bottom'),
+        assert(defaultCrop.left >= 0 && defaultCrop.left <= 1, 'left should be 0..1'),
+        assert(defaultCrop.right >= 0 && defaultCrop.right <= 1, 'right should be 0..1'),
+        assert(defaultCrop.top >= 0 && defaultCrop.top <= 1, 'top should be 0..1'),
+        assert(defaultCrop.bottom >= 0 && defaultCrop.bottom <= 1, 'bottom should be 0..1'),
+        assert(defaultCrop.left < defaultCrop.right, 'left must be less than right'),
+        assert(defaultCrop.top < defaultCrop.bottom, 'top must be less than bottom'),
         super(CropControllerValue(
           aspectRatio,
           defaultCrop,
@@ -143,7 +106,6 @@ class CropController extends ValueNotifier<CropControllerValue> {
           minimumImageSize,
         ));
 
-  /// Creates a controller for a [CropImage] widget from an initial [CropControllerValue].
   CropController.fromValue(CropControllerValue value) : super(value);
 
   Rect _adjustRatio(
@@ -156,12 +118,9 @@ class CropController extends ValueNotifier<CropControllerValue> {
     }
     final bool justRotated = rotation != null;
     rotation ??= value.rotation;
-    final bitmapWidth =
-        rotation.isSideways ? _bitmapSize.height : _bitmapSize.width;
-    final bitmapHeight =
-        rotation.isSideways ? _bitmapSize.width : _bitmapSize.height;
+    final bitmapWidth = rotation.isSideways ? _bitmapSize.height : _bitmapSize.width;
+    final bitmapHeight = rotation.isSideways ? _bitmapSize.width : _bitmapSize.height;
     if (justRotated) {
-      // we've just rotated: in that case, biggest centered crop.
       const center = Offset(.5, .5);
       final width = bitmapWidth;
       final height = bitmapHeight;
@@ -183,11 +142,6 @@ class CropController extends ValueNotifier<CropControllerValue> {
     }
   }
 
-  /// Returns the bitmap cropped with the current crop rectangle.
-  ///
-  /// [maxSize] is the maximum width or height you want.
-  /// You can provide the [quality] used in the resizing operation.
-  /// Returns an [ui.Image] asynchronously.
   Future<ui.Image> croppedBitmap({
     final double? maxSize,
     final ui.FilterQuality quality = FilterQuality.high,
@@ -199,12 +153,6 @@ class CropController extends ValueNotifier<CropControllerValue> {
         rotation: value.rotation,
         image: _bitmap!,
       );
-
-  /// Returns the bitmap cropped with parameters.
-  ///
-  /// [maxSize] is the maximum width or height you want.
-  /// The [crop] `Rect` is normalized to (0, 0) x (1, 1).
-  /// You can provide the [quality] used in the resizing operation.
   static Future<ui.Image> getCroppedBitmap({
     final double? maxSize,
     final ui.FilterQuality quality = FilterQuality.high,
@@ -225,7 +173,6 @@ class CropController extends ValueNotifier<CropControllerValue> {
       cropWidth = crop.width * image.width;
       cropHeight = crop.height * image.height;
     }
-    // factor between the full size and the maxSize constraint.
     double factor = 1;
     if (maxSize != null) {
       if (cropWidth > maxSize || cropHeight > maxSize) {
@@ -285,25 +232,18 @@ class CropController extends ValueNotifier<CropControllerValue> {
     if (rotation != CropRotation.up) {
       canvas.restore();
     }
-
-    //FIXME Picture.toImage() crashes on Flutter Web with the HTML renderer. Use CanvasKit or avoid this operation for now. https://github.com/flutter/engine/pull/20750
-    return await pictureRecorder
-        .endRecording()
-        .toImage((cropWidth * factor).round(), (cropHeight * factor).round());
+    return await pictureRecorder.endRecording().toImage((cropWidth * factor).round(), (cropHeight * factor).round());
   }
 
-  /// Returns the image cropped with the current crop rectangle.
-  ///
-  /// You can provide the [quality] used in the resizing operation.
-  /// Returns an [Image] asynchronously.
-  Future<Image> croppedImage(
-      {ui.FilterQuality quality = FilterQuality.high}) async {
+  Future<Image> croppedImage({ui.FilterQuality quality = FilterQuality.high}) async {
     return Image(
       image: UiImageProvider(await croppedBitmap(quality: quality)),
       fit: BoxFit.contain,
     );
   }
 }
+
+//  Class Start
 
 @immutable
 class CropControllerValue {
@@ -353,23 +293,18 @@ class CropControllerValue {
       );
 }
 
-/// Provides the given [ui.Image] object as an [Image].
-///
-/// Exposed as a convenience. You don't need to use it unless you want to create your own version
-/// of the [croppedImage()] function of [CropController].
+//  Class End
+
 class UiImageProvider extends ImageProvider<UiImageProvider> {
-  /// The [ui.Image] from which the image will be fetched.
   final ui.Image image;
 
   const UiImageProvider(this.image);
 
   @override
-  Future<UiImageProvider> obtainKey(ImageConfiguration configuration) =>
-      SynchronousFuture<UiImageProvider>(this);
+  Future<UiImageProvider> obtainKey(ImageConfiguration configuration) => SynchronousFuture<UiImageProvider>(this);
 
   @override
-  ImageStreamCompleter loadImage(
-          UiImageProvider key, ImageDecoderCallback decode) =>
+  ImageStreamCompleter loadImage(UiImageProvider key, ImageDecoderCallback decode) =>
       OneFrameImageStreamCompleter(_loadAsync(key));
 
   Future<ImageInfo> _loadAsync(UiImageProvider key) async {
